@@ -48,3 +48,8 @@ plt.xlabel("Community ID")
 plt.ylabel("Page Type")
 plt.tight_layout()
 plt.show()
+
+
+# שלב נוסף: בדיקת מספר הקהילות שזוהו
+num_communities = len(set(partition.values()))
+print(f"Number of communities detected by Louvain algorithm: {num_communities}")
