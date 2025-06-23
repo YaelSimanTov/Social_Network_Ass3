@@ -82,11 +82,16 @@ def power_law_binning_logarithm(G, bins=20, show_fit=False):
 
 
 
+# =====================
+# Degree Distribution Histogram
+# =====================
+
 # Load the data
 edges_df = pd.read_csv("musae_facebook_edges.csv")
 targets_df = pd.read_csv("musae_facebook_target.csv")
 
 
+# Add 'page_name' to the graph (if available)
 
 # Build the graph
 G = nx.Graph()
@@ -103,6 +108,8 @@ if 'page_name' in targets_df.columns:
 else:
     print("Warning: 'page_name' column not found in target CSV.")
 
+power_law_binning_logarithm(G)
+
 # Calculate degrees and sort descending
 top_nodes = sorted(G.degree, key=lambda x: x[1], reverse=True)[:30]
 
@@ -114,4 +121,35 @@ for node, degree in top_nodes:
     print(f"Node ID: {node}, Degree: {degree}, Type: {page_type}, Name: {page_name}")
 
 
-power_law_binning_logarithm(G)
+"""
+********************************************************************************************
+Create subgraphs by category
+********************************************************************************************
+"""
+
+# ************************* Identify nodes per category  *************************
+politician_nodes = targets_df[targets_df['page_type'] == 'politician']['id'].tolist()
+government_nodes = targets_df[targets_df['page_type'] == 'government']['id'].tolist()
+tvshow_nodes = targets_df[targets_df['page_type'] == 'tvshow']['id'].tolist()
+company_nodes = targets_df[targets_df['page_type'] == 'company']['id'].tolist()
+
+
+# ************************* Create subgraphs by category  *************************
+G_politician = G.subgraph(politician_nodes)
+G_government = G.subgraph(government_nodes)
+G_tvshow = G.subgraph(tvshow_nodes)
+G_company = G.subgraph(company_nodes)
+
+# Layout formerly each subgraph (fixed for consistency)
+pos_politician = nx.spring_layout(G_politician, seed=42)
+pos_government = nx.spring_layout(G_government, seed=42)
+pos_tvshow = nx.spring_layout(G_tvshow, seed=42)
+pos_company = nx.spring_layout(G_company, seed=42)
+
+power_law_binning_logarithm(G_politician)
+power_law_binning_logarithm(G_government)
+power_law_binning_logarithm(G_tvshow)
+power_law_binning_logarithm(G_company)
+
+
+

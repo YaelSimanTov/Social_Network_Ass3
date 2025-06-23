@@ -4,20 +4,26 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# קריאת קובצי הקלט
-target = pd.read_csv('musae_facebook_target.csv')
-edges  = pd.read_csv('musae_facebook_edges.csv')
 
-# יצירת גרף חדש
+# Load the data
+edges_df = pd.read_csv("musae_facebook_edges.csv")
+targets_df = pd.read_csv("musae_facebook_target.csv")
+
+# Build the graph
 G = nx.Graph()
+for node_id, page_type in zip(targets_df['id'], targets_df['page_type']):
+    G.add_node(node_id, page_type=page_type)
 
-# הוספת הצמתים לגרף עם תכונת page_type
-for it, cat in zip(target['id'], target['page_type']):
-    G.add_node(it, page_type=cat)
+for u, v in zip(edges_df['id_1'], edges_df['id_2']):
+    G.add_edge(u, v)
 
-# הוספת הקשתות לגרף
-for n1, n2 in zip(edges['id_1'], edges['id_2']):
-    G.add_edge(n1, n2)
+# Optional: Add page_name if it exists
+if 'page_name' in targets_df.columns:
+    for node_id, name in zip(targets_df['id'], targets_df['page_name']):
+        G.nodes[node_id]['page_name'] = name
+else:
+    print("Warning: 'page_name' column not found.")
+
 # שלב 1: זיהוי קהילות באמצעות אלגוריתם Louvain
 partition = community_louvain.best_partition(G)
 nx.set_node_attributes(G, partition, 'community')
@@ -33,8 +39,8 @@ for node in G.nodes():
 
 community_df = pd.DataFrame(community_data)
 
-# שלב 3: חישוב טבלת הצלבות בין סוגי דפים לקהילות 5 הגדולות ביותר
-top_communities = community_df['community'].value_counts().head(5).index
+# שלב 3: חישוב טבלת הצלבות בין סוגי דפים לקהילות 4 הגדולות ביותר
+top_communities = community_df['community'].value_counts().head(4).index
 community_summary = pd.crosstab(
     community_df[community_df['community'].isin(top_communities)]['page_type'],
     community_df[community_df['community'].isin(top_communities)]['community']
@@ -43,7 +49,7 @@ community_summary = pd.crosstab(
 # שלב 4: הדמיה באמצעות heatmap
 plt.figure(figsize=(12, 6))
 sns.heatmap(community_summary, annot=True, fmt="d", cmap="YlGnBu")
-plt.title("Page Types in Top 5 Communities")
+plt.title("Page Types in Top 4 Communities")
 plt.xlabel("Community ID")
 plt.ylabel("Page Type")
 plt.tight_layout()
@@ -53,3 +59,18 @@ plt.show()
 # שלב נוסף: בדיקת מספר הקהילות שזוהו
 num_communities = len(set(partition.values()))
 print(f"Number of communities detected by Louvain algorithm: {num_communities}")
+
+
+results = []
+for node in G.nodes():
+    comm = G.nodes[node]['community']
+    external = sum(
+        1 for neighbor in G.neighbors(node)
+        if G.nodes[neighbor]['community'] != comm
+    )
+    results.append((node, external))
+
+top_bridges = sorted(results, key=lambda x: x[1], reverse=True)[:10]
+print("\nTop 10 Nodes Bridging Communities:")
+for node, external_links in top_bridges:
+    print(f"Node {node}, External Connections: {external_links}, Type: {G.nodes[node].get('page_type')}, Name: {G.nodes[node].get('page_name', 'N/A')}")
